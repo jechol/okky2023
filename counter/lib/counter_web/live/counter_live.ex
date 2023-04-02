@@ -8,8 +8,8 @@ defmodule CounterWeb.CounterLive do
       Phoenix.PubSub.subscribe(Counter.PubSub, "counter")
     end
 
-    Counter.Cache.put_new("count", 0)
-    count = Counter.Cache.get("count")
+    Agent.start(fn -> 0 end, name: {:global, :counter})
+    count = Agent.get({:global, :counter}, & &1)
 
     {:ok, assign(socket, count: count, region: region)}
   end
@@ -24,19 +24,18 @@ defmodule CounterWeb.CounterLive do
   end
 
   def handle_event("inc", _params, socket) do
-    count = Counter.Cache.update("count", 0, &(&1 + 1))
+    count = Agent.get_and_update({:global, :counter}, fn count -> {count + 1, count + 1} end)
     Phoenix.PubSub.broadcast(Counter.PubSub, "counter", {:count, count})
     {:noreply, assign(socket, count: count)}
   end
 
   def handle_event("dec", _params, socket) do
-    count = Counter.Cache.update("count", 0, &(&1 - 1))
+    count = Agent.get_and_update({:global, :counter}, fn count -> {count - 1, count - 1} end)
     Phoenix.PubSub.broadcast(Counter.PubSub, "counter", {:count, count})
     {:noreply, assign(socket, count: count)}
   end
 
   def handle_info({:count, count}, socket) do
-    IO.puts("Got count: #{count}")
     {:noreply, assign(socket, count: count)}
   end
 end
